@@ -1,0 +1,30 @@
+import jwt from "jsonwebtoken";
+
+/* ============================================================
+   📌 Verificar token
+   ============================================================ */
+export const verificarToken = (req, res, next) => {
+  const token = req.headers["authorization"];
+
+  if (!token) {
+    return res.status(401).json({ error: "Token requerido" });
+  }
+
+  try {
+    const decoded = jwt.verify(token.split(" ")[1], process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: "Token inválido" });
+  }
+};
+
+/* ============================================================
+   📌 Solo administradores
+   ============================================================ */
+export const soloAdmin = (req, res, next) => {
+  if (req.user.rol !== "Administrador") {
+    return res.status(403).json({ error: "Acceso denegado: solo administradores" });
+  }
+  next();
+};
