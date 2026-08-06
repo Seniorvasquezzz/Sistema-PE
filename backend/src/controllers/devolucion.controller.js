@@ -1,29 +1,53 @@
-import db from "../config/db.js";
-
-export const crearDevolucion = async (req, res) => {
+export const registrarDevolucion = async (req, res) => {
   try {
-    const { id_paquete, fecha_devolucion, motivo } = req.body;
+    const { id_paquete, motivo, local_destino } = req.body;
 
-    if (!id_paquete || !fecha_devolucion) {
-      return res.status(400).json({ error: "id_paquete y fecha_devolucion son obligatorios" });
+    // Validación básica
+    if (!id_paquete || !motivo) {
+      return res.status(400).json({ mensaje: "Datos incompletos" });
     }
 
-    const result = await db.query(
-      `
-      INSERT INTO devolucion (id_paquete, fecha_devolucion, motivo)
-      VALUES ($1, $2, $3)
-      RETURNING *;
-      `,
-      [id_paquete, fecha_devolucion, motivo]
-    );
-
-    res.status(201).json({
-      mensaje: "Devolución registrada",
-      devolucion: result.rows[0]
+    // Aquí luego conectamos con la BD real
+    res.json({
+      mensaje: "Devolución registrada correctamente",
+      data: { id_paquete, motivo, local_destino }
     });
 
   } catch (error) {
     console.error("Error al registrar devolución:", error);
-    res.status(500).json({ error: "Error al registrar devolución" });
+    res.status(500).json({ mensaje: "Error interno del servidor" });
+  }
+};
+
+export const obtenerDevoluciones = async (req, res) => {
+  try {
+    // Aquí luego conectamos con la BD real
+    res.json({
+      mensaje: "Listado de devoluciones",
+      data: []
+    });
+
+  } catch (error) {
+    console.error("Error al obtener devoluciones:", error);
+    res.status(500).json({ mensaje: "Error interno del servidor" });
+  }
+};
+
+export const crearDevolucion = async (req, res) => {
+  try {
+    const { id_paquete, motivo, local_destino } = req.body;
+
+    if (!id_paquete || !motivo) {
+      return res.status(400).json({ mensaje: "Datos incompletos" });
+    }
+
+    res.json({
+      mensaje: "Devolución creada correctamente",
+      data: { id_paquete, motivo, local_destino }
+    });
+
+  } catch (error) {
+    console.error("Error al crear devolución:", error);
+    res.status(500).json({ mensaje: "Error interno del servidor" });
   }
 };

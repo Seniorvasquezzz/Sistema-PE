@@ -2,15 +2,17 @@ import express from "express";
 import {
   getPaquetes,
   createPaquete,
-  actualizarEstadoPaquete
+  updatePaquete,
+  actualizarEstadoPaquete,
+  marcarComoPagada
 } from "../controllers/paquete.controller.js";
 
 const router = express.Router();
 
 router.get("/", getPaquetes);
 router.post("/", createPaquete);
-router.put("/:id/estado", actualizarEstadoPaquete);
-router.put("/:id/pagar", marcarComoPagada);
-
+router.put("/:id", updatePaquete);
+router.put("/estado/:id", actualizarEstadoPaquete);
+router.put("/pagar/:id", marcarComoPagada);
 
 export default router;

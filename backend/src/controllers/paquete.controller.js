@@ -1,211 +1,146 @@
 import db from "../config/db.js";
 
-/* ============================================================
-   📌 GET: Listar paquetes con filtros por estado y ruta
-   ============================================================ */
+// Obtener paquetes
 export const getPaquetes = async (req, res) => {
   try {
-    const { estado, ruta } = req.query;
-
-    let filtros = [];
-    let valores = [];
-
-    // Filtro por estado
-    if (estado) {
-      const estadoResult = await db.query(
-        "SELECT id_estado FROM estado_paquete WHERE nombre_estado = $1",
-        [estado]
-      );
-
-      if (estadoResult.rows.length === 0) {
-        return res.status(404).json({ error: "El estado indicado no existe" });
-      }
-
-      filtros.push(`p.id_estado = $${filtros.length + 1}`);
-      valores.push(estadoResult.rows[0].id_estado);
-    }
-
-    // Filtro por ruta
-    if (ruta) {
-      const rutaResult = await db.query(
-        "SELECT id_ruta FROM ruta WHERE nombre_ruta = $1",
-        [ruta]
-      );
-
-      if (rutaResult.rows.length === 0) {
-        return res.status(404).json({ error: "La ruta indicada no existe" });
-      }
-
-      filtros.push(`p.id_ruta = $${filtros.length + 1}`);
-      valores.push(rutaResult.rows[0].id_ruta);
-    }
-
-    let query = `
-      SELECT p.*, e.nombre_estado, l.nombre_local, r.nombre_ruta
-      FROM paquete p
-      INNER JOIN estado_paquete e ON p.id_estado = e.id_estado
-      INNER JOIN local l ON p.id_local = l.id_local
-      INNER JOIN ruta r ON p.id_ruta = r.id_ruta
-    `;
-
-    if (filtros.length > 0) {
-      query += ` WHERE ${filtros.join(" AND ")}`;
-    }
-
-    query += " ORDER BY p.id_paquete ASC";
-
-    const result = await db.query(query, valores);
-
+    const result = await db.query(
+      "SELECT * FROM paquete ORDER BY id_paquete DESC"
+    );
     res.json(result.rows);
-
   } catch (error) {
-    console.error("Error al obtener paquetes:", error);
+    console.error("ERROR GET:", error);
     res.status(500).json({ error: "Error al obtener paquetes" });
   }
 };
 
-/* ============================================================
-   📌 POST: Crear paquete con estado inicial "Pendiente"
-   ============================================================ */
+// Crear paquete
 export const createPaquete = async (req, res) => {
   try {
-    const { codigo, descripcion, id_local, id_ruta } = req.body;
+    console.log("BODY RECIBIDO:", req.body);
 
-    if (!codigo || !descripcion || !id_local || !id_ruta) {
-      return res.status(400).json({ error: "Todos los campos son obligatorios" });
-    }
+    const {
+      codigo,
+      descripcion,
+      vendedor,
+      cliente,
+      destino,
+      procedencia,
+      total,
+      id_estado,
+      id_local,
+      fecha_ingreso
+    } = req.body;
 
-    // Obtener id del estado Pendiente
-    const estadoResult = await db.query(
-      "SELECT id_estado FROM estado_paquete WHERE nombre_estado = 'Pendiente'"
+    const result = await db.query(
+      `INSERT INTO paquete 
+        (codigo, descripcion, vendedor, cliente, destino, procedencia, total, 
+         id_estado, id_local, fecha_ingreso)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [
+        codigo,
+        descripcion,
+        vendedor,
+        cliente,
+        destino,
+        procedencia,
+        total,
+        id_estado,
+        id_local,
+        fecha_ingreso
+      ]
     );
 
-    if (estadoResult.rows.length === 0) {
-      return res.status(500).json({ error: "Estado 'Pendiente' no existe en la base" });
-    }
-
-    const id_estado = estadoResult.rows[0].id_estado;
-
-    const query = `
-      INSERT INTO paquete (codigo, descripcion, id_local, id_estado, id_ruta)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *;
-    `;
-
-    const values = [codigo, descripcion, id_local, id_estado, id_ruta];
-
-    const result = await db.query(query, values);
-
-    res.status(201).json({
-      mensaje: "Paquete registrado exitosamente",
-      paquete: result.rows[0]
-    });
-
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error al crear paquete:", error);
+    console.error("ERROR CREATE:", error);
     res.status(500).json({ error: "Error al crear paquete" });
   }
 };
 
-/* ============================================================
-   📌 PUT: Actualizar estado del paquete
-   ============================================================ */
+// Editar paquete
+export const updatePaquete = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      codigo,
+      descripcion,
+      vendedor,
+      cliente,
+      destino,
+      procedencia,
+      total,
+      id_estado,
+      id_local,
+      fecha_ingreso
+    } = req.body;
+
+    const result = await db.query(
+      `UPDATE paquete
+       SET codigo=$1, descripcion=$2, vendedor=$3, cliente=$4, destino=$5,
+           procedencia=$6, total=$7, id_estado=$8, id_local=$9, fecha_ingreso=$10
+       WHERE id_paquete=$11
+       RETURNING *`,
+      [
+        codigo,
+        descripcion,
+        vendedor,
+        cliente,
+        destino,
+        procedencia,
+        total,
+        id_estado,
+        id_local,
+        fecha_ingreso,
+        id
+      ]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("ERROR UPDATE:", error);
+    res.status(500).json({ error: "Error al editar paquete" });
+  }
+};
+
+// Cambiar estado
 export const actualizarEstadoPaquete = async (req, res) => {
   try {
     const { id } = req.params;
     const { nuevo_estado } = req.body;
 
-    if (!nuevo_estado) {
-      return res.status(400).json({ error: "El campo nuevo_estado es obligatorio" });
-    }
-
-    const estadoResult = await db.query(
-      "SELECT id_estado FROM estado_paquete WHERE nombre_estado = $1",
-      [nuevo_estado]
+    const result = await db.query(
+      `UPDATE paquete SET id_estado=$1 WHERE id_paquete=$2 RETURNING *`,
+      [nuevo_estado, id]
     );
 
-    if (estadoResult.rows.length === 0) {
-      return res.status(404).json({ error: "El estado indicado no existe" });
-    }
-
-    const id_estado = estadoResult.rows[0].id_estado;
-
-    const updateResult = await db.query(
-      "UPDATE paquete SET id_estado = $1 WHERE id_paquete = $2 RETURNING *",
-      [id_estado, id]
-    );
-
-    if (updateResult.rows.length === 0) {
-      return res.status(404).json({ error: "Paquete no encontrado" });
-    }
-
-    res.json({
-      mensaje: "Estado actualizado correctamente",
-      paquete: updateResult.rows[0]
-    });
-
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error al actualizar estado:", error);
-    res.status(500).json({ error: "Error al actualizar estado del paquete" });
+    console.error("ERROR ESTADO:", error);
+    res.status(500).json({ error: "Error al actualizar estado" });
   }
 };
 
-/* ============================================================
-   📌 PUT: Marcar remus como pagadas (usuarios locales)
-   ============================================================ */
+// Marcar como pagada
 export const marcarComoPagada = async (req, res) => {
   try {
     const { id } = req.params;
-    const usuario = req.user; // viene del login
-    const id_local_usuario = usuario.id_local;
+    const { pagado_por, id_local_pago } = req.body;
 
-    // 1️⃣ Verificar si ya está pagada
-    const paquete = await db.query(
-      "SELECT id_estado FROM paquete WHERE id_paquete = $1",
-      [id]
-    );
-
-    if (paquete.rows.length === 0) {
-      return res.status(404).json({ error: "Paquete no encontrado" });
-    }
-
-    const estadoActual = paquete.rows[0].id_estado;
-
-    // Si ya está pagada → solo admin puede modificar
-    if (estadoActual === 2 && usuario.rol !== "Administrador") {
-      return res.status(403).json({
-        error: "Este remus ya está pagada. Solo administradores pueden modificarla."
-      });
-    }
-
-    // 2️⃣ Obtener id del estado "Entregado" o "Pagada"
-    const estadoResult = await db.query(
-      "SELECT id_estado FROM estado_paquete WHERE nombre_estado = 'Entregado'"
-    );
-
-    const id_estado_pagada = estadoResult.rows[0].id_estado;
-
-    // 3️⃣ Actualizar como pagada
     const result = await db.query(
-      `
-      UPDATE paquete
-      SET id_estado = $1,
-          fecha_pago = CURRENT_TIMESTAMP,
-          pagado_por = $2,
-          id_local_pago = $3
-      WHERE id_paquete = $4
-      RETURNING *;
-      `,
-      [id_estado_pagada, usuario.nombre, id_local_usuario, id]
+      `UPDATE paquete
+       SET fecha_pago=CURRENT_TIMESTAMP,
+           pagado_por=$1,
+           id_local_pago=$2
+       WHERE id_paquete=$3
+       RETURNING *`,
+      [pagado_por, id_local_pago, id]
     );
 
-    res.json({
-      mensaje: "Remu marcada como pagada",
-      paquete: result.rows[0]
-    });
-
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error("Error al marcar como pagada:", error);
-    res.status(500).json({ error: "Error al marcar remu como pagada" });
+    console.error("ERROR PAGO:", error);
+    res.status(500).json({ error: "Error al marcar como pagada" });
   }
 };

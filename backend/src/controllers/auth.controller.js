@@ -10,6 +10,8 @@ export const login = async (req, res) => {
   try {
     const { usuario, clave } = req.body;
 
+    console.log("Body recibido en login:", req.body);
+
     if (!usuario || !clave) {
       return res.status(400).json({ error: "Usuario y clave son obligatorios" });
     }
